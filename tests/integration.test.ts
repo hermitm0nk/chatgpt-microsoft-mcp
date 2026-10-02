@@ -115,7 +115,9 @@ describe("browser controls", () => {
     const data = await response.json() as any;
     expect(data).toEqual({ verified: true });
     expect(JSON.stringify(data)).not.toContain("private-list");
-    expect(String(fetcher.mock.calls[0][0])).toBe("https://graph.microsoft.com/v1.0/me/todo/lists");
+    const graphUrl = new URL(String(fetcher.mock.calls[0][0]));
+    expect(graphUrl.origin + graphUrl.pathname).toBe("https://graph.microsoft.com/v1.0/me/todo/lists");
+    expect(graphUrl.searchParams.get("$top")).toBe("1");
     expect(new Headers(fetcher.mock.calls[0][1]?.headers).get("Authorization")).toBe("Bearer access-alice");
   });
   it("rejects anonymous and cross-origin Microsoft access checks before Graph access", async () => {
