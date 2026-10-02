@@ -21,7 +21,18 @@ const taskSchema = z.object({ id: z.string().max(1024), title: z.string(), statu
 export function validateGraphUrl(raw: string, path: string): URL {
   let url: URL;
   try { url = new URL(raw); } catch { throw new AppError("invalid_cursor", 400, "This pagination cursor is invalid. Start a new list request."); }
-  if (url.origin !== ORIGIN || url.username || url.password || url.hash || url.pathname !== path || raw.length > 4096)
+  // Graph may return a semantically equivalent path with characters encoded differently
+  // from the request (for example, a literal '=' instead of '%3D' in an opaque list ID).
+  // Decode each segment separately so encoded slashes cannot change route boundaries.
+  const samePath = (actual: string, expected: string) => {
+    const actualSegments = actual.split("/");
+    const expectedSegments = expected.split("/");
+    return actualSegments.length === expectedSegments.length && actualSegments.every((segment, index) => {
+      try { return decodeURIComponent(segment) === decodeURIComponent(expectedSegments[index]); }
+      catch { return false; }
+    });
+  };
+  if (url.origin !== ORIGIN || url.username || url.password || url.hash || !samePath(url.pathname, path) || raw.length > 4096)
     throw new AppError("invalid_cursor", 400, "This pagination cursor is invalid for this operation.");
   return url;
 }

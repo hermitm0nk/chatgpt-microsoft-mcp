@@ -304,6 +304,18 @@ describe("Graph and MCP authorization", () => {
     expect(() => validateGraphUrl("https://graph.microsoft.com/v1.0/users/bob/todo/lists", "/v1.0/me/todo/lists")).toThrow();
     expect(() => validateGraphUrl("https://attacker@graph.microsoft.com/v1.0/me/todo/lists", "/v1.0/me/todo/lists")).toThrow();
   });
+  it("accepts Graph next links that encode an opaque list ID differently", async () => {
+    await connect();
+    const listId = "opaque-list-id=";
+    const fetcher = vi.fn<typeof fetch>(async () => Response.json({ value: [task], "@odata.nextLink": `https://graph.microsoft.com/v1.0/me/todo/lists/${listId}/tasks?$skiptoken=opaque` }));
+    const graph = new Graph(store, alice, fetcher);
+    const firstPage = await graph.listTasks(listId, 1);
+    expect(firstPage.nextCursor).toBeTruthy();
+    await graph.listTasks(listId, 1, firstPage.nextCursor);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(String(fetcher.mock.calls[0][0])).toContain("opaque-list-id%3D/tasks");
+    expect(String(fetcher.mock.calls[1][0])).toContain("opaque-list-id=/tasks");
+  });
   it("encodes resource IDs, uses only /me endpoints and never follows redirects", async () => {
     await connect(); const fetcher = vi.fn<typeof fetch>(async (url, init) => {
       expect(String(url)).toBe("https://graph.microsoft.com/v1.0/me/todo/lists/a%2Fb%3F%23/tasks/task%2Fid"); expect(init?.redirect).toBe("manual"); return Response.json(task);
