@@ -8,6 +8,7 @@ import { beginOAuth, finishOAuth, confirmReplacement, pendingConnection } from "
 import { CLIENT_SCRIPT } from "./portal-client";
 import { CSS, landing, privacy, settings } from "./portal";
 import { now, Store } from "./store";
+import { measure } from "./telemetry";
 import type { Dependencies, Env } from "./types";
 
 const empty = z.object({}).strict();
@@ -45,6 +46,7 @@ async function route(request: Request, url: URL, store: Store, deps: Dependencie
     if (path === "/api/ms/oauth-return") {
       const owner = browserOwner(request, env);
       const result = await finishOAuth(store, owner.id, url, deps);
+      measure({ event: "microsoft_authorization", outcome: result });
       return noRedirect(`${settingsUrl(env)}?notice=${result}`);
     }
     if (path === "/api/settings" || path === "/api/tokens") {

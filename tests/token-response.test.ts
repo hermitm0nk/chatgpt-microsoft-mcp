@@ -18,6 +18,7 @@ describe("Microsoft token response handling", () => {
   });
   it("distinguishes exchange failures without exposing provider values or secrets", async () => {
     const log = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const metrics = vi.spyOn(console, "info").mockImplementation(() => {});
     const cases = [
       { fetcher: async () => { throw new Error("private-network-message"); }, expected: { stage: "token_fetch", reason: "network" } },
       { fetcher: async () => new Response("private-non-json", { status: 502 }), expected: { stage: "token_body", status: 502 } },
@@ -26,6 +27,7 @@ describe("Microsoft token response handling", () => {
       { fetcher: async () => Response.json({ ...valid, expires_in: "private-invalid-expiry" }), expected: { stage: "token_schema", status: 200, invalidFields: ["expires_in"] } },
     ];
     try {
+      await tokenRequest(env, async () => Response.json(valid), { grant_type: "authorization_code", code: "private-code" });
       for (const { fetcher, expected } of cases) {
         try { await tokenRequest(env, fetcher, {}); throw new Error("Expected exchange failure"); }
         catch (error) {
@@ -34,10 +36,11 @@ describe("Microsoft token response handling", () => {
           expect(await response.text()).not.toContain("private-");
         }
       }
-      const output = JSON.stringify(log.mock.calls);
+      const output = JSON.stringify([...log.mock.calls, ...metrics.mock.calls]);
       expect(output).not.toContain("private-");
       expect(output).not.toContain("client_secret");
       expect(output).toContain("token_schema");
-    } finally { log.mockRestore(); }
+      expect(output).toContain("microsoft_token_exchange");
+    } finally { log.mockRestore(); metrics.mockRestore(); }
   });
 });

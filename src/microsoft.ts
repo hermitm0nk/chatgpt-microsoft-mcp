@@ -4,6 +4,7 @@ import { MICROSOFT_AUTHORITY, CONSUMER_TENANT, OAUTH_SCOPES, oauthReady, redirec
 import { AppError } from "./errors";
 import { boundedText } from "./http";
 import { now } from "./store";
+import { elapsed, measure } from "./telemetry";
 import type { Env, Fetcher, TokenCache } from "./types";
 
 export function createIdentityValidator(fetcher: Fetcher = fetch) {
@@ -34,6 +35,18 @@ const responseSchema = z.object({ access_token: z.string().min(1).max(32_768), r
   // OAuth token type names are case-insensitive (RFC 6749 section 7.1).
   token_type: z.string().regex(/^Bearer$/i), expires_in: z.number().int().positive().max(86_400), scope: z.string().max(4096), id_token: z.string().max(32_768).optional() });
 export async function tokenRequest(env: Env, fetcher: Fetcher, fields: Record<string, string>, previous?: TokenCache): Promise<{ cache: TokenCache; idToken?: string }> {
+  const start = performance.now();
+  const grant = fields.grant_type === "authorization_code" ? "code" : fields.grant_type === "refresh_token" ? "refresh" : "other";
+  try {
+    const result = await exchangeToken(env, fetcher, fields, previous);
+    measure({ event: "microsoft_token_exchange", grant, outcome: "success", durationMs: elapsed(start) });
+    return result;
+  } catch (error) {
+    measure({ event: "microsoft_token_exchange", grant, outcome: "failure", durationMs: elapsed(start) });
+    throw error;
+  }
+}
+async function exchangeToken(env: Env, fetcher: Fetcher, fields: Record<string, string>, previous?: TokenCache): Promise<{ cache: TokenCache; idToken?: string }> {
   oauthReady(env);
   let response: Response;
   try {

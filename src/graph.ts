@@ -6,6 +6,7 @@ import { now, Store } from "./store";
 import { accessToken } from "./token-manager";
 import type { Fetcher, Owner } from "./types";
 import { requireWrite } from "./auth";
+import { elapsed, measure } from "./telemetry";
 
 const ORIGIN = "https://graph.microsoft.com";
 const ROOT = "/v1.0/me/todo/lists";
@@ -36,7 +37,7 @@ export class Graph {
   private path(listId?: string, taskId?: string): string {
     return ROOT + (listId ? `/${encodeURIComponent(listId)}/tasks` : "") + (taskId ? `/${encodeURIComponent(taskId)}` : "");
   }
-  private async request(url: URL, method: string, body?: unknown) {
+  private async request(url: URL, method: "GET" | "POST" | "PATCH" | "DELETE", body?: unknown) {
     if (method !== "GET") requireWrite(this.owner);
     // workerd's global fetch must not be invoked with the Graph instance as `this`.
     const fetcher = this.fetcher;
@@ -44,15 +45,18 @@ export class Graph {
     const attempts = method === "GET" ? 2 : 1;
     for (let attempt = 0; attempt < attempts; attempt++) {
       let response: Response;
+      const start = performance.now();
       try {
         response = await fetcher(url.toString(), { method, redirect: "manual", signal: AbortSignal.timeout(15_000),
           headers: { Authorization: `Bearer ${access.token}`, Accept: "application/json", ...(body ? { "Content-Type": "application/json" } : {}) },
           body: body ? JSON.stringify(body) : undefined });
       } catch {
+        measure({ event: "graph_request", method, status: 0, durationMs: elapsed(start) });
         if (method !== "GET") throw new AppError("write_outcome_unknown", 503, "Microsoft did not confirm this change. Check the task/list before retrying; repeating creation may duplicate it.");
         if (attempt + 1 < attempts) continue;
         throw new AppError("graph_unavailable", 503, "Microsoft To Do is temporarily unavailable. Try again.");
       }
+      measure({ event: "graph_request", method, status: response.status, durationMs: elapsed(start) });
       if (response.status >= 300 && response.status < 400) {
         await response.body?.cancel();
         throw new AppError(method === "GET" ? "graph_unavailable" : "write_outcome_unknown", 503,
