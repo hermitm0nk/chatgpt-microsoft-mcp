@@ -10,7 +10,7 @@ The development server deliberately ignores identity headers. Do not enable head
 
 ## Delivery status
 
-The private Site is registered as `appgprj_6abf8aadedf48191803c28c499c403bc`, with expected origin `https://microsoft-todo-mcp.smart-rabbit.chatgpt.site`. **It is not deployed.** The Worker build is not a deployable Sites artifact yet: the canonical Sites scaffold/build helper is unavailable in this environment.
+The private Site is registered as `appgprj_6abf8aadedf48191803c28c499c403bc`, now with neutral slug `todo-bridge`. **It is not deployed.** Microsoft rejected the original redirect URI with a prohibited-word/restricted-domain error; a neutral URL is being evaluated, and the new origin must be verified before runtime configuration. The Worker build is not a deployable Sites artifact yet: the canonical Sites scaffold/build helper is unavailable in this environment.
 
 Implemented: owner-scoped D1 storage; AES-GCM token encryption with versioned keys; state/PKCE/nonce-bound Microsoft linking; explicit account replacement; disconnect; fenced refresh leases; personal token issuance/expiry/revocation; Settings; and all eight proposed To Do MCP tools. Microsoft/Graph responses are mocked in integration tests; identity tests verify real JWT signatures against a local test JWKS.
 

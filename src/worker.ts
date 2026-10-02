@@ -19,7 +19,7 @@ export async function handleRequest(request: Request, env: Env, deps: Dependenci
     return secure(response, correlationId);
   } catch (error) {
     const response = errorResponse(error, correlationId);
-    if (url.pathname === "/api/microsoft/oauth-return") {
+    if (url.pathname === "/api/ms/oauth-return") {
       return secure(noRedirect(`${settingsUrl(env)}?notice=${response.status === 401 ? "browser_auth_required" : "callback_failed"}`), correlationId);
     }
     return secure(response, correlationId);
@@ -40,7 +40,7 @@ async function route(request: Request, url: URL, store: Store, deps: Dependencie
       if (!owner) return noRedirect("/signin-with-chatgpt?return_to=%2Fsettings");
       return settings(owner.email || "your ChatGPT account", url.searchParams.get("notice") || undefined);
     }
-    if (path === "/api/microsoft/oauth-return") {
+    if (path === "/api/ms/oauth-return") {
       const owner = browserOwner(request, env);
       const result = await finishOAuth(store, owner.id, url, deps);
       return noRedirect(`${settingsUrl(env)}?notice=${result}`);

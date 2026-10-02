@@ -139,14 +139,14 @@ describe("Microsoft authorization transactions", () => {
   it("binds PKCE/state to the owner, encrypts the verifier and consumes it once", async () => {
     const authorization = new URL(await beginOAuth(store, "alice", "connect"));
     expect(authorization.hostname).toBe("login.microsoftonline.com"); expect(authorization.pathname).toContain("consumers");
-    expect(authorization.searchParams.get("redirect_uri")).toBe("https://todo.example/api/microsoft/oauth-return");
+    expect(authorization.searchParams.get("redirect_uri")).toBe("https://todo.example/api/ms/oauth-return");
     expect(authorization.searchParams.get("code_challenge_method")).toBe("S256"); expect(authorization.searchParams.get("scope")).not.toContain("User.Read");
     const state = authorization.searchParams.get("state")!;
     const transaction = await env.DB.prepare("SELECT * FROM oauth_transactions WHERE state_hash = ?").bind(await hash(state)).first<any>();
     expect(JSON.stringify(transaction)).not.toContain(state);
     const verifier = await decrypt<string>(env, `oauth:alice:${transaction.state_hash}`, transaction.encrypted_verifier);
     expect(await hash(verifier)).toBe(authorization.searchParams.get("code_challenge"));
-    const callback = new URL(`https://todo.example/api/microsoft/oauth-return?state=${state}&code=code`);
+    const callback = new URL(`https://todo.example/api/ms/oauth-return?state=${state}&code=code`);
     const fetcher = vi.fn<typeof fetch>(async (_url, init) => {
       const fields = new URLSearchParams(String(init?.body)); expect(fields.get("code_verifier")).toBe(verifier); return tokenResponse();
     });
@@ -161,22 +161,22 @@ describe("Microsoft authorization transactions", () => {
   it("rejects expired and duplicate state before contacting Microsoft", async () => {
     const auth = new URL(await beginOAuth(store, "alice", "connect")); const state = auth.searchParams.get("state")!; const fetcher = upstream();
     await env.DB.prepare("UPDATE oauth_transactions SET expires_at = ?").bind(Date.now() - 1000).run();
-    await expect(finishOAuth(store, "alice", new URL(`https://todo.example/api/microsoft/oauth-return?state=${state}&code=x`), { fetch: fetcher })).rejects.toMatchObject({ code: "invalid_oauth_state" });
-    await expect(finishOAuth(store, "alice", new URL(`https://todo.example/api/microsoft/oauth-return?state=${state}&state=${state}&code=x`), { fetch: fetcher })).rejects.toMatchObject({ code: "invalid_oauth_state" });
+    await expect(finishOAuth(store, "alice", new URL(`https://todo.example/api/ms/oauth-return?state=${state}&code=x`), { fetch: fetcher })).rejects.toMatchObject({ code: "invalid_oauth_state" });
+    await expect(finishOAuth(store, "alice", new URL(`https://todo.example/api/ms/oauth-return?state=${state}&state=${state}&code=x`), { fetch: fetcher })).rejects.toMatchObject({ code: "invalid_oauth_state" });
     expect(fetcher).not.toHaveBeenCalled();
   });
   it("preserves an existing connection on cancellation or rejected identity", async () => {
     const original = await connect();
     const auth = new URL(await beginOAuth(store, "alice", "replace"));
-    expect(await finishOAuth(store, "alice", new URL(`https://todo.example/api/microsoft/oauth-return?state=${auth.searchParams.get("state")}&error=access_denied`), { fetch: upstream() })).toBe("cancelled");
+    expect(await finishOAuth(store, "alice", new URL(`https://todo.example/api/ms/oauth-return?state=${auth.searchParams.get("state")}&error=access_denied`), { fetch: upstream() })).toBe("cancelled");
     const auth2 = new URL(await beginOAuth(store, "alice", "replace"));
-    await expect(finishOAuth(store, "alice", new URL(`https://todo.example/api/microsoft/oauth-return?state=${auth2.searchParams.get("state")}&code=x`), { fetch: vi.fn(async () => tokenResponse()), validateIdentity: async () => { throw new Error("invalid identity"); } })).rejects.toThrow();
+    await expect(finishOAuth(store, "alice", new URL(`https://todo.example/api/ms/oauth-return?state=${auth2.searchParams.get("state")}&code=x`), { fetch: vi.fn(async () => tokenResponse()), validateIdentity: async () => { throw new Error("invalid identity"); } })).rejects.toThrow();
     expect((await store.connection("alice"))?.id).toBe(original.id);
   });
   it("requires confirmation to replace an account and revokes personal tokens", async () => {
     const original = await connect(); const issued = await createToken(store, "alice", "Agent", "write", 90);
     const auth = new URL(await beginOAuth(store, "alice", "replace"));
-    expect(await finishOAuth(store, "alice", new URL(`https://todo.example/api/microsoft/oauth-return?state=${auth.searchParams.get("state")}&code=x`), { fetch: vi.fn(async () => tokenResponse()), validateIdentity: async () => ({ subject: "different-account", label: "New account" }) })).toBe("confirm_replacement");
+    expect(await finishOAuth(store, "alice", new URL(`https://todo.example/api/ms/oauth-return?state=${auth.searchParams.get("state")}&code=x`), { fetch: vi.fn(async () => tokenResponse()), validateIdentity: async () => ({ subject: "different-account", label: "New account" }) })).toBe("confirm_replacement");
     expect((await store.connection("alice"))?.id).toBe(original.id);
     const pending = await env.DB.prepare("SELECT id FROM pending_connections WHERE owner_id = 'alice'").first<{ id: string }>();
     await expect(confirmReplacement(store, "bob", pending!.id)).rejects.toMatchObject({ code: "replacement_expired" });
@@ -189,14 +189,14 @@ describe("Microsoft authorization transactions", () => {
     let release!: () => void;
     const waiting = new Promise<void>(resolve => { release = resolve; });
     let entered!: () => void; const started = new Promise<void>(resolve => { entered = resolve; });
-    const finishing = finishOAuth(store, "alice", new URL(`https://todo.example/api/microsoft/oauth-return?state=${auth.searchParams.get("state")}&code=x`), { fetch: vi.fn(async () => { entered(); await waiting; return tokenResponse(); }), validateIdentity: identity });
+    const finishing = finishOAuth(store, "alice", new URL(`https://todo.example/api/ms/oauth-return?state=${auth.searchParams.get("state")}&code=x`), { fetch: vi.fn(async () => { entered(); await waiting; return tokenResponse(); }), validateIdentity: identity });
     await started; await store.disconnect("alice"); release();
     await expect(finishing).rejects.toMatchObject({ code: "connection_changed" });
     expect(await store.connection("alice")).toBeNull();
   });
   it("does not leak authorization codes or provider errors in callback responses/logs", async () => {
     const log = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const response = await handleRequest(request("/api/microsoft/oauth-return?state=bad&code=secret-code&error_description=secret-error", "GET", undefined, { "oai-authenticated-user-id": "alice" }), env);
+    const response = await handleRequest(request("/api/ms/oauth-return?state=bad&code=secret-code&error_description=secret-error", "GET", undefined, { "oai-authenticated-user-id": "alice" }), env);
     expect(response.status).toBe(303); expect(response.headers.get("Location")).toBe("https://todo.example/settings?notice=callback_failed");
     expect(JSON.stringify(log.mock.calls)).not.toContain("secret-code"); expect(JSON.stringify(log.mock.calls)).not.toContain("secret-error");
   });
