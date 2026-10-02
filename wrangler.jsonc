@@ -1,0 +1,19 @@
+{
+  // Local development only. Production hosting remains ChatGPT Sites.
+  "name": "microsoft-todo-mcp-local",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "todo-local",
+    "database_id": "local-development-only",
+    "migrations_dir": "drizzle"
+  }],
+  "vars": {
+    "PUBLIC_BASE_URL": "http://127.0.0.1:8787",
+    "MICROSOFT_CLIENT_ID": "",
+    "MICROSOFT_OAUTH_ENABLED": "false",
+    "TRUST_SITES_IDENTITY_HEADERS": "false"
+  }
+}
