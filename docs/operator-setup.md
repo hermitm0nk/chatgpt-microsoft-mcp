@@ -6,7 +6,7 @@
 2. Register a confidential web application supporting **personal Microsoft accounts only**. Use the `consumers` authority. Do not enable public-client flows.
 3. Add Microsoft Graph **delegated** `Tasks.ReadWrite`. The app requests `openid profile offline_access Tasks.ReadWrite`; no `User.Read` is needed.
 4. Record the application/client ID; it is safe to share. Create a client secret and put its **value**, not its ID, directly in the runtime secret store.
-5. The original redirect URL was rejected by Microsoft. First test this neutral **Web** redirect candidate: `https://todo-bridge.smart-rabbit.chatgpt.site/api/ms/oauth-return`. It is not a deployed URL or a verified final origin; reconcile it with Sites' returned publication origin before enabling linking. The registered Site now uses slug `todo-bridge`. Do not use Sites' reserved `/callback`.
+5. Microsoft accepted the exact **Web** redirect `https://todo-bridge.smart-rabbit.chatgpt.site/api/ms/oauth-return` (operator confirmed). Keep that registration and reconcile Sites' actual publication origin before enabling linking. The registered Site uses slug `todo-bridge`. Do not use Sites' reserved `/callback`.
 
 ## Runtime configuration (after Sites integration)
 

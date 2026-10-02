@@ -12,7 +12,7 @@
 
 | Gate | Current evidence / blocker |
 | --- | --- |
-| G1 Microsoft registration | User supplied client ID `aa3ff094-f57c-4818-88aa-b7e2e71efd38`; Microsoft rejected the original redirect URI. Audience, permission, acceptable exact redirect and runtime credential still need verification. |
+| G1 Microsoft registration | User supplied client ID `aa3ff094-f57c-4818-88aa-b7e2e71efd38` and confirmed Microsoft accepted the neutral exact Web redirect. Audience, permission and runtime credential still need verification. |
 | G2 Sites callback | Private Site registered; no deployment or real browser round trip. OAuth defaults disabled. |
 | G3 Trusted identity | Require Sites to strip caller-supplied identity headers and inject trusted identity; default trust disabled. Canonical scaffold helpers unavailable in this environment. |
 | G4 External MCP reachability | Must verify access policy without shared bypass credentials. Preserve private audience until explicitly changed. |
@@ -27,7 +27,7 @@ Installed Sites guidance provides resource text but its initializer and TypeScri
 
 Microsoft rejected the initial `https://microsoft-todo-mcp.smart-rabbit.chatgpt.site/api/microsoft/oauth-return` registration with “Your reply url contains prohibited words or restricted domains” (operator screenshot, October 2, 2026). This establishes rejection of that full URI, not which component was blocked. Microsoft's published redirect-URI restrictions do not identify the offending component or publish the applicable restricted-domain list.
 
-The same private Site was renamed to neutral slug `todo-bridge`, and the application callback path is now `/api/ms/oauth-return`. The neutral registration candidate is `https://todo-bridge.smart-rabbit.chatgpt.site/api/ms/oauth-return`; the updated Sites response does not supply an expected/live URL, so its final origin remains unverified. Test Microsoft's acceptance of the neutral candidate, then reconcile the exact origin returned by Sites before enabling OAuth. This is a hypothesis test, not a proven fix.
+The same private Site was renamed to neutral slug `todo-bridge`, and the application callback path is now `/api/ms/oauth-return`. The operator confirmed Microsoft accepted `https://todo-bridge.smart-rabbit.chatgpt.site/api/ms/oauth-return` on October 2, 2026. This resolves registration of that URI; the exact offending part of the original URL is still unknown. Reconcile the origin returned by deployment and test a real authorization round trip before enabling OAuth for users.
 
 If the neutral URL is also rejected, evaluate an owned custom domain on the same Site or Microsoft support to determine the exact restriction. Sites exposes a custom-domain API for published Sites and DNS validation; there is currently no attached custom domain. Do not implement a redirect relay, change the account audience, switch hosts, or enable device code without an explicit design decision.
 
