@@ -12,8 +12,8 @@
 
 | Gate | Current evidence / blocker |
 | --- | --- |
-| G1 Microsoft registration | User supplied client ID `aa3ff094-f57c-4818-88aa-b7e2e71efd38` and confirmed Microsoft accepted the neutral exact Web redirect. Audience, permission and runtime credential still need verification. |
-| G2 Sites callback | Private Worker deployed at the accepted origin. Real Microsoft browser round trip awaits client secret; linking remains disabled. |
+| G1 Microsoft registration | User supplied client ID `aa3ff094-f57c-4818-88aa-b7e2e71efd38`, registered the exact Web redirect and configured the Sites client-secret entry. Actual token exchange and permissions still need verification. |
+| G2 Sites callback | Browser returns to the correct callback with signed-in identity; owner-bound state validation passes. Token exchange fails with `microsoft_unavailable`. Safe stage diagnostics and case-insensitive Bearer validation deployed; fresh consent retry pending. |
 | G3 Trusted identity | Private runtime consumes documented Sites dispatch headers. Local trust stays disabled. Spoofed-header tests, browser identity and managed MCP owner consistency remain live checks. |
 | G4 External MCP reachability | Must verify access policy without shared bypass credentials. Preserve private audience until explicitly changed. |
 | G5 Hermes | SDK transport will be tested locally; actual client/header configuration remains pending. |
@@ -35,7 +35,9 @@ No custom domain, redirect relay, account-audience change, hosting switch or dev
 
 ## Current runtime setup
 
-`PUBLIC_BASE_URL`, the user-provided Microsoft client ID, and active encryption key version `v1` are configured. AES key material was generated directly into `TOKEN_ENCRYPTION_KEYS` in Sites runtime secrets; it is absent from source and ordinary output. `TRUST_SITES_IDENTITY_HEADERS=true` applies only to the hosted private Site behind dispatch. `MICROSOFT_OAUTH_ENABLED=false` until the client secret is configured and the operator can perform the controlled consent test. No Microsoft credentials or customer connection have been stored by deployment.
+`PUBLIC_BASE_URL`, the user-provided Microsoft client ID, and active encryption key version `v1` are configured. AES key material was generated directly into `TOKEN_ENCRYPTION_KEYS` in Sites runtime secrets; it is absent from source and ordinary output. `TRUST_SITES_IDENTITY_HEADERS=true` applies only to the hosted private Site behind dispatch. The operator configured `MICROSOFT_CLIENT_SECRET` in Sites; metadata confirms the secret entry, and runtime revision 3 enables `MICROSOFT_OAUTH_ENABLED=true` for the controlled private consent test. This does not establish that Microsoft accepted the secret.
+
+Production logs on October 2 at 11:32:56 UTC show `/api/ms/oauth-return` redirecting to Settings after `microsoft_unavailable` (reference `119d49a3-3b88-4716-ad99-3431281e14f6`). State consumption succeeded before the token exchange failed. The old error grouped fetch, response parsing, provider rejection and schema validation, so its exact cause is unknown. Source `5291ec4f6e784c48d9cf1bb4eda08f8ddf7696f6` adds bounded diagnostics containing only fixed stages, HTTP status, allowlisted provider error categories and schema field names, plus a Settings reference. OAuth token types now accept case-insensitive Bearer spelling per RFC 6749 section 7.1; live confirmation is pending. Restart Connect for each attempt because callback transactions are single-use. Never log response bodies, tokens, codes or provider error descriptions.
 
 ## Chosen provisional defaults
 
@@ -45,7 +47,7 @@ Task writes support the PRD's title, body, status, importance, date and reminder
 
 ## Local evidence
 
-`npm run check` runs strict TypeScript checks, 35 tests using real local D1 and signed JWTs, builds the Worker bundle, and executes the actual bundled MCP SDK/server in workerd. Coverage includes owner isolation, unknown owner arguments, read-only enforcement, OAuth replay/expiry/mismatched owner, explicit replacement, disconnect/callback races, refresh rotation/lease recovery, old-cache fencing, ciphertext tampering, CSRF, bounded bodies/pagination, safe errors, and ambiguous writes. Runtime smoke verifies health, eight-tool discovery, and fail-closed identity handling.
+`npm run check` runs strict TypeScript checks, 37 tests using real local D1 and signed JWTs, builds the Worker bundle, and executes the actual bundled MCP SDK/server in workerd. Coverage includes owner isolation, unknown owner arguments, read-only enforcement, OAuth replay/expiry/mismatched owner, explicit replacement, disconnect/callback races, refresh rotation/lease recovery, old-cache fencing, ciphertext tampering, CSRF, bounded bodies/pagination, safe errors, token response casing/diagnostic redaction, and ambiguous writes. Runtime smoke verifies health, eight-tool discovery, and fail-closed identity handling.
 
 Upstream field/time-zone behavior was checked against Microsoft Graph's official repository documentation (`todotask-update.md`, `datetimetimezone.md`) on October 2, 2026. Actual Microsoft and client behavior remains a live gate.
 
