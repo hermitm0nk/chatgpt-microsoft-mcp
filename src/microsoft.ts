@@ -1,4 +1,4 @@
-import { createRemoteJWKSet, jwtVerify } from "jose";
+import { createRemoteJWKSet, jwtVerify, customFetch } from "jose";
 import { z } from "zod";
 import { MICROSOFT_AUTHORITY, CONSUMER_TENANT, OAUTH_SCOPES, oauthReady, redirectUri } from "./config";
 import { AppError } from "./errors";
@@ -6,8 +6,15 @@ import { boundedText } from "./http";
 import { now } from "./store";
 import type { Env, Fetcher, TokenCache } from "./types";
 
-const keys = createRemoteJWKSet(new URL(`https://login.microsoftonline.com/${CONSUMER_TENANT}/discovery/v2.0/keys`), { timeoutDuration: 10_000 });
-export async function validateIdentity(jwt: string, nonce: string, env: Env): Promise<{ subject: string; label: string }> {
+export function createIdentityValidator(fetcher: Fetcher = fetch) {
+  const keys = createRemoteJWKSet(new URL(`https://login.microsoftonline.com/${CONSUMER_TENANT}/discovery/v2.0/keys`), {
+    timeoutDuration: 10_000,
+    [customFetch]: async (url, options) => {
+      const response = await fetcher(url, { ...options, redirect: "error" });
+      return new Response(await boundedText(response.body, 262_144), { status: response.status, headers: response.headers });
+    },
+  });
+  return async (jwt: string, nonce: string, env: Env): Promise<{ subject: string; label: string }> => {
   try {
     const { payload } = await jwtVerify(jwt, keys, { issuer: `https://login.microsoftonline.com/${CONSUMER_TENANT}/v2.0`,
       audience: env.MICROSOFT_CLIENT_ID, algorithms: ["RS256"], requiredClaims: ["sub", "exp", "iat", "nonce", "tid"], clockTolerance: 30 });
@@ -15,7 +22,9 @@ export async function validateIdentity(jwt: string, nonce: string, env: Env): Pr
     const name = typeof payload.name === "string" ? payload.name : "Personal Microsoft account";
     return { subject: payload.sub, label: name.slice(0, 200) };
   } catch { throw new AppError("invalid_microsoft_identity", 400, "Microsoft identity could not be verified. Start again from Settings."); }
+  };
 }
+export const validateIdentity = createIdentityValidator();
 
 const responseSchema = z.object({ access_token: z.string().min(1).max(32_768), refresh_token: z.string().min(1).max(32_768).optional(),
   token_type: z.literal("Bearer"), expires_in: z.number().int().positive().max(86_400), scope: z.string().max(4096), id_token: z.string().max(32_768).optional() });

@@ -53,8 +53,8 @@ export class Graph {
       }
       if (response.status === 401) {
         await response.body?.cancel();
-        await this.store.db.prepare("UPDATE microsoft_connections SET status = 'reconnect_required' WHERE owner_id = ? AND id = ? AND status = 'connected'")
-          .bind(this.owner.id, access.connectionId).run();
+        await this.store.db.prepare("UPDATE microsoft_connections SET status = 'reconnect_required' WHERE owner_id = ? AND id = ? AND cache_version = ? AND status = 'connected'")
+          .bind(this.owner.id, access.connectionId, access.cacheVersion).run();
         throw new AppError("reconnect_required", 409, "Microsoft authorization is no longer usable. Reconnect from Settings.");
       }
       if (response.status === 429 || response.status >= 500) {
@@ -114,8 +114,12 @@ export class Graph {
   listLists(limit: number, cursor?: string) { return this.page(this.path(), limit, cursor, false); }
   listTasks(listId: string, limit: number, cursor?: string) { return this.page(this.path(listId), limit, cursor, true); }
   async getTask(listId: string, taskId: string) { return { task: normalizeTask((await this.request(new URL(`${ORIGIN}${this.path(listId, taskId)}`), "GET")).data), untrustedContent: true }; }
-  async createTask(listId: string, fields: unknown) { return { task: normalizeTask((await this.request(new URL(`${ORIGIN}${this.path(listId)}`), "POST", fields)).data), untrustedContent: true }; }
-  async updateTask(listId: string, taskId: string, fields: unknown) { return { task: normalizeTask((await this.request(new URL(`${ORIGIN}${this.path(listId, taskId)}`), "PATCH", fields)).data), untrustedContent: true }; }
+  async createTask(listId: string, fields: unknown) { return this.changedTask((await this.request(new URL(`${ORIGIN}${this.path(listId)}`), "POST", fields)).data); }
+  async updateTask(listId: string, taskId: string, fields: unknown) { return this.changedTask((await this.request(new URL(`${ORIGIN}${this.path(listId, taskId)}`), "PATCH", fields)).data); }
+  private changedTask(data: unknown) {
+    try { return { task: normalizeTask(data), untrustedContent: true }; }
+    catch { throw new AppError("write_outcome_unknown", 503, "Microsoft may have saved the change, but its task response was unusable. Check before retrying."); }
+  }
   async deleteTask(listId: string, taskId: string) { await this.request(new URL(`${ORIGIN}${this.path(listId, taskId)}`), "DELETE"); return { deleted: true, listId, taskId }; }
 }
 function retrySeconds(value: string | null): number {

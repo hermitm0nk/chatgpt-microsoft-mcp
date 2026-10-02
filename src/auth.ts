@@ -46,8 +46,10 @@ export async function createToken(store: Store, owner: string, label: string, pe
   const token = `todo_${id}.${random()}`;
   const createdAt = now();
   const expiresAt = createdAt + days * 86_400_000;
-  await store.db.prepare("INSERT INTO api_tokens (id, owner_id, verifier, label, permission, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
-    .bind(id, owner, await hash(token), label, permission, createdAt, expiresAt).run();
+  const inserted = await store.db.prepare(`INSERT INTO api_tokens (id, owner_id, verifier, label, permission, created_at, expires_at)
+    SELECT ?, ?, ?, ?, ?, ?, ? WHERE (SELECT count(*) FROM api_tokens WHERE owner_id = ? AND revoked_at IS NULL AND expires_at > ?) < 20`)
+    .bind(id, owner, await hash(token), label, permission, createdAt, expiresAt, owner, createdAt).run();
+  if (inserted.meta.changes !== 1) throw new AppError("token_limit", 409, "Revoke an existing token before creating another (maximum 20 active tokens).");
   return { id, token, label, permission, createdAt, expiresAt };
 }
 export async function listTokens(store: Store, owner: string) {
