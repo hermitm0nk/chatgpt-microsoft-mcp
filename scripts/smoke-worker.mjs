@@ -18,3 +18,6 @@ try {
   assert.equal(spoof.status, 401);
   console.log("Bundled Worker smoke passed: health, SDK discovery, fail-closed identity.");
 } finally { await runtime.dispose(); }
+
+// Exercise real outbound fetch, signed JWKS identity validation and Graph in workerd.
+await import("./smoke-microsoft.mjs");

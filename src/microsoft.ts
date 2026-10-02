@@ -10,7 +10,11 @@ export function createIdentityValidator(fetcher: Fetcher = fetch) {
   const keys = createRemoteJWKSet(new URL(`https://login.microsoftonline.com/${CONSUMER_TENANT}/discovery/v2.0/keys`), {
     timeoutDuration: 10_000,
     [customFetch]: async (url, options) => {
-      const response = await fetcher(url, { ...options, redirect: "error" });
+      const response = await fetcher(url, { ...options, redirect: "manual" });
+      if (response.status >= 300 && response.status < 400) {
+        await response.body?.cancel();
+        throw new Error("Microsoft signing-key redirects are not permitted.");
+      }
       return new Response(await boundedText(response.body, 262_144), { status: response.status, headers: response.headers });
     },
   });
@@ -33,11 +37,17 @@ export async function tokenRequest(env: Env, fetcher: Fetcher, fields: Record<st
   oauthReady(env);
   let response: Response;
   try {
-    response = await fetcher(`${MICROSOFT_AUTHORITY}/token`, { method: "POST", redirect: "error", signal: AbortSignal.timeout(15_000),
+    response = await fetcher(`${MICROSOFT_AUTHORITY}/token`, { method: "POST", redirect: "manual", signal: AbortSignal.timeout(15_000),
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ ...fields, client_id: env.MICROSOFT_CLIENT_ID, client_secret: env.MICROSOFT_CLIENT_SECRET! }) });
   } catch (error) { throw new AppError("microsoft_unavailable", 503, "Microsoft authorization is temporarily unavailable. Try again.", undefined,
     { stage: "token_fetch", reason: error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name) ? "timeout" : "network" }); }
+  // workerd supports manual/follow only. Reject redirects without forwarding credentials.
+  if (response.status >= 300 && response.status < 400) {
+    await response.body?.cancel();
+    throw new AppError("microsoft_unavailable", 503, "Microsoft authorization returned an unexpected redirect. Try again.", undefined,
+      { stage: "token_rejected", status: response.status, providerError: "other" });
+  }
   let raw: unknown;
   try { raw = JSON.parse(await boundedText(response.body, 131_072)); }
   catch { throw new AppError("microsoft_unavailable", 503, "Microsoft authorization returned an unusable response. Try again.", undefined,

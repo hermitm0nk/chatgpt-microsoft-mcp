@@ -38,18 +38,25 @@ export class Graph {
   }
   private async request(url: URL, method: string, body?: unknown) {
     if (method !== "GET") requireWrite(this.owner);
-    const access = await accessToken(this.store, this.owner.id, this.fetcher);
+    // workerd's global fetch must not be invoked with the Graph instance as `this`.
+    const fetcher = this.fetcher;
+    const access = await accessToken(this.store, this.owner.id, fetcher);
     const attempts = method === "GET" ? 2 : 1;
     for (let attempt = 0; attempt < attempts; attempt++) {
       let response: Response;
       try {
-        response = await this.fetcher(url.toString(), { method, redirect: "error", signal: AbortSignal.timeout(15_000),
+        response = await fetcher(url.toString(), { method, redirect: "manual", signal: AbortSignal.timeout(15_000),
           headers: { Authorization: `Bearer ${access.token}`, Accept: "application/json", ...(body ? { "Content-Type": "application/json" } : {}) },
           body: body ? JSON.stringify(body) : undefined });
       } catch {
         if (method !== "GET") throw new AppError("write_outcome_unknown", 503, "Microsoft did not confirm this change. Check the task/list before retrying; repeating creation may duplicate it.");
         if (attempt + 1 < attempts) continue;
         throw new AppError("graph_unavailable", 503, "Microsoft To Do is temporarily unavailable. Try again.");
+      }
+      if (response.status >= 300 && response.status < 400) {
+        await response.body?.cancel();
+        throw new AppError(method === "GET" ? "graph_unavailable" : "write_outcome_unknown", 503,
+          method === "GET" ? "Microsoft To Do returned an unexpected redirect." : "Microsoft did not confirm this change. Check its outcome before retrying.");
       }
       if (response.status === 401) {
         await response.body?.cancel();

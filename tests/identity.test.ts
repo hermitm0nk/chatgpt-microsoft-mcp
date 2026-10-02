@@ -10,7 +10,7 @@ describe("Microsoft identity validation", () => {
     const jwk = { ...await exportJWK(publicKey), kid: "microsoft-test-key", alg: "RS256", use: "sig" };
     const fetcher = vi.fn<typeof fetch>(async (url, init) => {
       expect(String(url)).toBe(`https://login.microsoftonline.com/${CONSUMER_TENANT}/discovery/v2.0/keys`);
-      expect(init?.redirect).toBe("error");
+      expect(init?.redirect).toBe("manual");
       return Response.json({ keys: [jwk] });
     });
     const validate = createIdentityValidator(fetcher);

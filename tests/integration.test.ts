@@ -285,7 +285,7 @@ describe("Graph and MCP authorization", () => {
   });
   it("encodes resource IDs, uses only /me endpoints and never follows redirects", async () => {
     await connect(); const fetcher = vi.fn<typeof fetch>(async (url, init) => {
-      expect(String(url)).toBe("https://graph.microsoft.com/v1.0/me/todo/lists/a%2Fb%3F%23/tasks/task%2Fid"); expect(init?.redirect).toBe("error"); return Response.json(task);
+      expect(String(url)).toBe("https://graph.microsoft.com/v1.0/me/todo/lists/a%2Fb%3F%23/tasks/task%2Fid"); expect(init?.redirect).toBe("manual"); return Response.json(task);
     });
     await new Graph(store, alice, fetcher).getTask("a/b?#", "task/id"); expect(fetcher).toHaveBeenCalledOnce();
   });
