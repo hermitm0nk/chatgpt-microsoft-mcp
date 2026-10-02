@@ -265,6 +265,8 @@ describe("Graph and MCP authorization", () => {
     const discovered = await rpc("tools/list"); expect(discovered.status).toBe(200); const data = await discovered.json() as any;
     expect(data.result.tools).toHaveLength(8); expect(JSON.stringify(data)).not.toContain("alice"); expect(JSON.stringify(data)).not.toContain("access-");
     expect(data.result.tools.find((t: any) => t.name === "todo_delete_task").annotations.destructiveHint).toBe(true);
+    const taskTool = data.result.tools.find((t: any) => t.name === "todo_list_tasks");
+    expect(taskTool.inputSchema.properties.includeCompleted).toMatchObject({ type: "boolean", default: false });
   });
   it("rejects anonymous data calls and read-only writes before Graph requests", async () => {
     await connect(); const fetcher = upstream();
@@ -315,6 +317,20 @@ describe("Graph and MCP authorization", () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
     expect(String(fetcher.mock.calls[0][0])).toContain("opaque-list-id%3D/tasks");
     expect(String(fetcher.mock.calls[1][0])).toContain("opaque-list-id=/tasks");
+  });
+  it("filters completed tasks server-side by default and binds the filter to pagination cursors", async () => {
+    await connect();
+    const fetcher = vi.fn<typeof fetch>(async () => Response.json({ value: [task], "@odata.nextLink": "https://graph.microsoft.com/v1.0/me/todo/lists/list/tasks?$skiptoken=opaque" }));
+    const graph = new Graph(store, alice, fetcher);
+    const firstPage = await graph.listTasks("list", 1);
+    const firstUrl = new URL(String(fetcher.mock.calls[0][0]));
+    expect(firstUrl.searchParams.get("$filter")).toBe("status ne 'completed'");
+    await graph.listTasks("list", 1, firstPage.nextCursor);
+    const secondUrl = new URL(String(fetcher.mock.calls[1][0]));
+    expect(secondUrl.searchParams.get("$filter")).toBe("status ne 'completed'");
+    await expect(graph.listTasks("list", 1, firstPage.nextCursor, true)).rejects.toMatchObject({ code: "invalid_cursor" });
+    await graph.listTasks("list", 1, undefined, true);
+    expect(new URL(String(fetcher.mock.calls[2][0])).searchParams.has("$filter")).toBe(false);
   });
   it("encodes resource IDs, uses only /me endpoints and never follows redirects", async () => {
     await connect(); const fetcher = vi.fn<typeof fetch>(async (url, init) => {

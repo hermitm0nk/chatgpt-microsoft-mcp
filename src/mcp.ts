@@ -50,8 +50,8 @@ export async function mcp(request: Request, store: Store, deps: Dependencies): P
     }));
   server.registerTool("todo_list_lists", { description: TOOL_DESCRIPTIONS.todo_list_lists, inputSchema: z.object(pageFields).strict(), annotations: annotations(false) },
     args => run(async (_o, graph) => graph.listLists(args.limit, args.cursor)));
-  server.registerTool("todo_list_tasks", { description: TOOL_DESCRIPTIONS.todo_list_tasks, inputSchema: z.object({ listId: resourceId, ...pageFields }).strict(), annotations: annotations(false) },
-    args => run(async (_o, graph) => graph.listTasks(args.listId, args.limit, args.cursor)));
+  server.registerTool("todo_list_tasks", { description: TOOL_DESCRIPTIONS.todo_list_tasks, inputSchema: z.object({ listId: resourceId, ...pageFields, includeCompleted: z.boolean().default(false) }).strict(), annotations: annotations(false) },
+    args => run(async (_o, graph) => graph.listTasks(args.listId, args.limit, args.cursor, args.includeCompleted)));
   server.registerTool("todo_get_task", { description: TOOL_DESCRIPTIONS.todo_get_task, inputSchema: z.object({ listId: resourceId, taskId: resourceId }).strict(), annotations: annotations(false) },
     args => run(async (_o, graph) => graph.getTask(args.listId, args.taskId)));
   server.registerTool("todo_create_task", { description: TOOL_DESCRIPTIONS.todo_create_task, inputSchema: z.object({ listId: resourceId, task: createSchema }).strict(), annotations: annotations(true) },

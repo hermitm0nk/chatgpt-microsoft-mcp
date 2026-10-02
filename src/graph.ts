@@ -10,7 +10,7 @@ import { elapsed, measure } from "./telemetry";
 
 const ORIGIN = "https://graph.microsoft.com";
 const ROOT = "/v1.0/me/todo/lists";
-const cursorSchema = z.object({ url: z.string().max(4096), path: z.string(), connectionId: z.string(), expiresAt: z.number() });
+const cursorSchema = z.object({ url: z.string().max(4096), path: z.string(), connectionId: z.string(), expiresAt: z.number(), includeCompleted: z.boolean().optional() });
 const listSchema = z.object({ id: z.string().max(1024), displayName: z.string(), isOwner: z.boolean().optional(), isShared: z.boolean().optional(), wellknownListName: z.string().optional() });
 const dateSchema = z.object({ dateTime: z.string().max(80), timeZone: z.string().max(80) }).nullable().optional();
 const taskSchema = z.object({ id: z.string().max(1024), title: z.string(), status: z.string().max(80), importance: z.string().max(80),
@@ -107,7 +107,7 @@ export class Graph {
     }
     throw new AppError("graph_unavailable", 503, "Microsoft To Do is temporarily unavailable.");
   }
-  private async page(path: string, limit: number, cursor: string | undefined, tasks: boolean) {
+  private async page(path: string, limit: number, cursor: string | undefined, tasks: boolean, includeCompleted = true) {
     let url = new URL(`${ORIGIN}${path}`);
     url.searchParams.set("$top", String(limit));
     if (cursor) {
@@ -115,10 +115,12 @@ export class Graph {
       try { value = cursorSchema.parse(await decrypt(this.store.env, `cursor:${this.owner.id}:${path}`, cursor)); }
       catch { throw new AppError("invalid_cursor", 400, "The cursor is invalid for this user/operation. Start a new list request."); }
       const current = await this.store.connection(this.owner.id);
-      if (value.expiresAt <= now() || value.path !== path || value.connectionId !== current?.id) throw new AppError("invalid_cursor", 400, "The cursor expired or your connection changed. Start a new list request.");
+      if (value.expiresAt <= now() || value.path !== path || value.connectionId !== current?.id || (tasks && value.includeCompleted !== includeCompleted)) throw new AppError("invalid_cursor", 400, "The cursor expired or your connection or task filter changed. Start a new list request.");
       url = validateGraphUrl(value.url, path);
       url.searchParams.set("$top", String(limit));
     }
+    if (tasks && !includeCompleted) url.searchParams.set("$filter", "status ne 'completed'");
+    else if (tasks) url.searchParams.delete("$filter");
     const response = await this.request(url, "GET");
     const page = z.object({ value: z.array(z.unknown()).max(100), "@odata.nextLink": z.string().max(4096).optional() }).safeParse(response.data);
     if (!page.success || page.data.value.length > limit) throw new AppError("graph_unavailable", 503, "Microsoft To Do returned an unusable page.");
@@ -130,11 +132,12 @@ export class Graph {
     });
     const nextLink = page.data["@odata.nextLink"];
     const nextCursor = nextLink ? await encrypt(this.store.env, `cursor:${this.owner.id}:${path}`, {
-      url: validateGraphUrl(nextLink, path).toString(), path, connectionId: response.connectionId, expiresAt: now() + 600_000 }) : undefined;
+      url: validateGraphUrl(nextLink, path).toString(), path, connectionId: response.connectionId, expiresAt: now() + 600_000,
+      ...(tasks ? { includeCompleted } : {}) }) : undefined;
     return { items, nextCursor, untrustedContent: true };
   }
   listLists(limit: number, cursor?: string) { return this.page(this.path(), limit, cursor, false); }
-  listTasks(listId: string, limit: number, cursor?: string) { return this.page(this.path(listId), limit, cursor, true); }
+  listTasks(listId: string, limit: number, cursor?: string, includeCompleted = false) { return this.page(this.path(listId), limit, cursor, true, includeCompleted); }
   async getTask(listId: string, taskId: string) { return { task: normalizeTask((await this.request(new URL(`${ORIGIN}${this.path(listId, taskId)}`), "GET")).data), untrustedContent: true }; }
   async createTask(listId: string, fields: unknown) { return this.changedTask((await this.request(new URL(`${ORIGIN}${this.path(listId)}`), "POST", fields)).data); }
   async updateTask(listId: string, taskId: string, fields: unknown) { return this.changedTask((await this.request(new URL(`${ORIGIN}${this.path(listId, taskId)}`), "PATCH", fields)).data); }
