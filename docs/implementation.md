@@ -7,6 +7,7 @@
 3. Connection Settings and personal token management.
 4. Stateless MCP and eight bounded To Do tools.
 5. Security/integration checks and operational setup.
+6. Settings access check through the existing MCP endpoint, sanitized upstream measurements, and Python MCP client interoperability.
 
 ## Live verification gates (pending)
 
@@ -16,7 +17,7 @@
 | G2 Sites callback | Passed for the owner: user confirmed connected Settings/account label on October 2, 2026; callback at 11:53:30 UTC returned 303 with no failure event. Cancellation/reconnect/second-owner checks remain. |
 | G3 Trusted identity | Private runtime consumes documented Sites dispatch headers. Local trust stays disabled. Spoofed-header tests, browser identity and managed MCP owner consistency remain live checks. |
 | G4 External MCP reachability | Must verify access policy without shared bypass credentials. Preserve private audience until explicitly changed. |
-| G5 Hermes | SDK transport will be tested locally; actual client/header configuration remains pending. |
+| G5 Hermes | Inspected upstream commit `2f80ae0a6a91932b1808a53f9c55f8b3f313d6cc`: HTTP/custom headers/profile-secret interpolation supported. Its pinned Python MCP 2.0.0 SDK passes local Worker handshake/discovery/token reads. Actual installed Hermes and private Site reachability remain live gates. |
 | G6 Second ChatGPT account | Actual canonical plugin installation and owner consistency must be tested. |
 | G7 Public distribution | Unverified; no launch/catalog claims. |
 | G8 Runtime | Actual bundled Worker deployed successfully; all six D1 tables applied and MCP capability confirmed. Deployed token refresh, quotas and contention still need live verification. |
@@ -54,5 +55,11 @@ Task writes support the PRD's title, body, status, importance, date and reminder
 `npm run check` runs strict TypeScript checks, 37 tests using real local D1 and signed JWTs, builds the Worker bundle, and executes the actual bundled MCP SDK/server in workerd. Coverage includes owner isolation, unknown owner arguments, read-only enforcement, OAuth replay/expiry/mismatched owner, explicit replacement, disconnect/callback races, refresh rotation/lease recovery, old-cache fencing, ciphertext tampering, CSRF, bounded bodies/pagination, safe errors, token response casing/diagnostic redaction, and ambiguous writes. Runtime smoke verifies health, eight-tool discovery, and fail-closed identity handling.
 
 Upstream field/time-zone behavior was checked against Microsoft Graph's official repository documentation (`todotask-update.md`, `datetimetimezone.md`) on October 2, 2026. Actual Microsoft and client behavior remains a live gate.
+
+`scripts/check-python-mcp.mjs` and `.py` provide an optional reproducible test of the Python SDK pinned by the inspected Hermes source. The actual loopback Worker issues a synthetic read-only personal token, and the client initializes at `2025-11-25`, discovers eight tools, checks permission and receives actionable not-connected results. This passes with `mcp==2.0.0`/`httpx2==2.7.0`; it does not establish the full Hermes CLI or production reachability. See `docs/agent-setup.md` for the prepared profile configuration and its explicit live gates.
+
+Settings' **Check To Do access** makes a bounded, read-only `todo_list_lists` call through `/mcp` from the signed-in browser. It does not persist or display list contents. A successful click verifies that browser caller's Graph read path; it does not substitute for the canonical plugin caller check. Sites reports the canonical plugin already installed, but its tools are not exposed in this chat. The owner was asked to enable/connect it and try connection status.
+
+The Worker emits low-cardinality measurements for token exchange grant/outcome/duration, Graph method/status/duration (status 0 for network errors), and successful/cancelled/replacement authorization outcomes. Sites supplies invocation/request context and request timing. Measurements exclude owners, account labels, URLs, headers, provider descriptions, credentials and task content; token-response tests check redaction. No analytics database or task mirror was introduced. Platform log retention still needs a release review.
 
 No live gate is marked passed solely on local tests.

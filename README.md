@@ -19,3 +19,5 @@ Implemented: owner-scoped D1 storage; AES-GCM token encryption with versioned ke
 Microsoft linking is enabled and the first browser consent round trip succeeded. The bundled Worker regression also completes synthetic signed OAuth and Graph reads, checking runtime compatibility and rejection of credential redirects. Local configuration ignores managed identity headers; the hosted private Site enables header trust only behind Sites dispatch. Browser/managed MCP consistency, spoofing, external-client reachability, and two-user behavior still need live verification in [the implementation tracker](docs/implementation.md). Local tests do not prove the live boundary.
 
 See [operator setup](docs/operator-setup.md) for manual registration and runtime configuration. Do not commit credentials or paste them into chat.
+
+See [agent setup](docs/agent-setup.md) for the canonical ChatGPT plugin, Settings' read-only access check, and the prepared Hermes configuration. The optional Python SDK interoperability check is reproducible locally; live headless access remains gated by the private Site's access policy.
