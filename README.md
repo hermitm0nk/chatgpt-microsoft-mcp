@@ -10,10 +10,12 @@ The development server deliberately ignores identity headers. Do not enable head
 
 ## Delivery status
 
-The private Site is registered as `appgprj_6abf8aadedf48191803c28c499c403bc`, now with neutral slug `todo-bridge`. **It is not deployed.** Microsoft rejected the original redirect URI with a prohibited-word/restricted-domain error; a neutral URL is being evaluated, and the new origin must be verified before runtime configuration. The Worker build is not a deployable Sites artifact yet: the canonical Sites scaffold/build helper is unavailable in this environment.
+The private pilot is deployed at [todo-bridge.smart-rabbit.chatgpt.site](https://todo-bridge.smart-rabbit.chatgpt.site) as `appgprj_6abf8aadedf48191803c28c499c403bc`. Sites confirmed MCP support, provisioned its canonical plugin, applied all six D1 tables, and applied runtime configuration revision 1. Microsoft accepted the exact Web redirect `https://todo-bridge.smart-rabbit.chatgpt.site/api/ms/oauth-return`.
+
+The missing bundled scaffold was resolved by using Sites' supported framework-independent Worker artifact. `npm run build` emits `dist/server/index.js` and its Worker configuration. `npm run sites:package` packages a clean committed source state. `scripts/sites-source.mjs` accepts short-lived Sites source credentials over hidden stdin and pushes without storing credentials or force-pushing.
 
 Implemented: owner-scoped D1 storage; AES-GCM token encryption with versioned keys; state/PKCE/nonce-bound Microsoft linking; explicit account replacement; disconnect; fenced refresh leases; personal token issuance/expiry/revocation; Settings; and all eight proposed To Do MCP tools. Microsoft/Graph responses are mocked in integration tests; identity tests verify real JWT signatures against a local test JWKS.
 
-Microsoft OAuth and Sites identity-header trust are disabled by default. Enable only after the platform gates in [the implementation tracker](docs/implementation.md) pass. Local tests provide controlled identities at the test boundary; they do not prove the live Sites boundary.
+Microsoft linking remains disabled pending the runtime client secret and a real consent round trip. Local configuration ignores managed identity headers; the hosted private Site enables header trust only behind Sites dispatch. Browser/managed MCP consistency, spoofing, external-client reachability, and two-user behavior still need live verification in [the implementation tracker](docs/implementation.md). Local tests do not prove the live boundary.
 
 See [operator setup](docs/operator-setup.md) for manual registration and runtime configuration. Do not commit credentials or paste them into chat.
