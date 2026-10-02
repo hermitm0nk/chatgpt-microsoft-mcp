@@ -25,7 +25,7 @@ export async function boundedText(body: ReadableStream<Uint8Array> | null, limit
   for (const chunk of chunks) { data.set(chunk, offset); offset += chunk.length; }
   return new TextDecoder().decode(data);
 }
-export async function readJson<T>(request: Request, schema: z.ZodType<T>): Promise<T> {
+export async function readJson<S extends z.ZodTypeAny>(request: Request, schema: S): Promise<z.output<S>> {
   if (!/^application\/json(?:\s*;|$)/i.test(request.headers.get("Content-Type") || "")) throw new AppError("invalid_content_type", 415, "Send JSON in the request body.");
   let value: unknown;
   try { value = JSON.parse(await boundedText(request.body, 32_768)); }
