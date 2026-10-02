@@ -9,10 +9,10 @@ export const CLIENT_SCRIPT = String.raw`(() => {
     let data;
     try { data = await response.json(); }
     catch {
-      if (!response.ok) throw new Error(`This action could not be completed (HTTP ${response.status}). Try again.`);
+      if (!response.ok) throw new Error('This action could not be completed (HTTP ' + response.status + '). Try again.');
       throw new Error('The Site returned an invalid response. Refresh Settings and try again.');
     }
-    if (!response.ok) throw new Error(data?.error?.message || `This action could not be completed (HTTP ${response.status}). Try again.`);
+    if (!response.ok) throw new Error(data?.error?.message || 'This action could not be completed (HTTP ' + response.status + '). Try again.');
     return data;
   }
   async function action(button, fn) {
