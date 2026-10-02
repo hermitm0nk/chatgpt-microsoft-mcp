@@ -3,6 +3,7 @@ import { browserOwner, createToken, listTokens, managedOwner } from "./auth";
 import { baseUrl, settingsUrl } from "./config";
 import { errorResponse, failure, json } from "./errors";
 import { noRedirect, protectBrowserWrite, readJson } from "./http";
+import { Graph } from "./graph";
 import { mcp } from "./mcp";
 import { beginOAuth, finishOAuth, confirmReplacement, pendingConnection } from "./oauth";
 import { CLIENT_SCRIPT } from "./portal-client";
@@ -33,6 +34,15 @@ async function route(request: Request, url: URL, store: Store, deps: Dependencie
   const path = url.pathname;
   if (path === "/health" && request.method === "GET") return json({ ok: true });
   if (path === "/mcp") return mcp(request, store, deps);
+  if (path === "/api/check-access") {
+    if (request.method !== "POST") return new Response(null, { status: 405, headers: { Allow: "POST" } });
+    const owner = browserOwner(request, env);
+    protectBrowserWrite(request, env);
+    await store.limit(`settings:check:${owner.id}`, 20);
+    await readJson(request, empty);
+    await new Graph(store, owner, deps.fetch).listLists(1);
+    return json({ verified: true });
+  }
   if (request.method === "GET") {
     if (path === "/") return landing();
     if (path === "/privacy") return privacy();

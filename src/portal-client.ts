@@ -6,8 +6,13 @@ export const CLIENT_SCRIPT = String.raw`(() => {
   async function api(path, body) {
     const response = await fetch(path, { method: body === undefined ? 'GET' : 'POST', credentials: 'same-origin', cache: 'no-store',
       headers: { Accept: 'application/json, text/event-stream', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) }, body: body === undefined ? undefined : JSON.stringify(body) });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error?.message || 'This action could not be completed. Try again.');
+    let data;
+    try { data = await response.json(); }
+    catch {
+      if (!response.ok) throw new Error(`This action could not be completed (HTTP ${response.status}). Try again.`);
+      throw new Error('The Site returned an invalid response. Refresh Settings and try again.');
+    }
+    if (!response.ok) throw new Error(data?.error?.message || `This action could not be completed (HTTP ${response.status}). Try again.`);
     return data;
   }
   async function action(button, fn) {
@@ -55,8 +60,8 @@ export const CLIENT_SCRIPT = String.raw`(() => {
   $('check-access').addEventListener('click', () => action($('check-access'), async () => {
     feedback('Checking Microsoft To Do access…');
     try {
-      const data = await api('/mcp', { jsonrpc: '2.0', id: crypto.randomUUID(), method: 'tools/call', params: { name: 'todo_list_lists', arguments: { limit: 1 } } });
-      if (data.error || !data.result || data.result.isError) throw new Error(data.result?.structuredContent?.error?.message || 'To Do access could not be verified. Try again.');
+      const data = await api('/api/check-access', {});
+      if (data.verified !== true) throw new Error('To Do access could not be verified. Try again.');
       feedback('To Do access verified through this Site. No tasks were changed.');
     } finally { await load(); }
   }));

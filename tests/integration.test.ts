@@ -107,6 +107,25 @@ describe("browser controls", () => {
     const issued = await createToken(store, "alice", "Agent", "write", 90);
     expect((await handleRequest(browser("/api/tokens", { label: "Another" }, "alice", { "X-MCP-API-Key": issued.token }), env)).status).toBe(401);
   });
+  it("checks Microsoft access for the signed-in browser without returning list data", async () => {
+    await connect("alice");
+    const fetcher = vi.fn<typeof fetch>(async () => Response.json({ value: [{ id: "private-list", displayName: "Private list" }] }));
+    const response = await handleRequest(browser("/api/check-access", {}), env, { fetch: fetcher });
+    expect(response.status).toBe(200);
+    const data = await response.json() as any;
+    expect(data).toEqual({ verified: true });
+    expect(JSON.stringify(data)).not.toContain("private-list");
+    expect(String(fetcher.mock.calls[0][0])).toBe("https://graph.microsoft.com/v1.0/me/todo/lists");
+    expect(new Headers(fetcher.mock.calls[0][1]?.headers).get("Authorization")).toBe("Bearer access-alice");
+  });
+  it("rejects anonymous and cross-origin Microsoft access checks before Graph access", async () => {
+    const fetcher = upstream();
+    const anonymous = await handleRequest(request("/api/check-access", "POST", {}, { Origin: "https://todo.example" }), env, { fetch: fetcher });
+    expect(anonymous.status).toBe(401);
+    const crossOrigin = await handleRequest(browser("/api/check-access", {}, "alice", { Origin: "https://evil.example" }), env, { fetch: fetcher });
+    expect(crossOrigin.status).toBe(403);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
   it("defaults to read-only and 90-day expiry, rejects extra owner fields", async () => {
     const response = await handleRequest(browser("/api/tokens", { label: "Agent" }), env);
     expect(response.status).toBe(201); const data = await response.json() as any;
