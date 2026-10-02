@@ -10,6 +10,8 @@ The development server deliberately ignores identity headers. Do not enable head
 
 ## Delivery status
 
+Current progress, deployed source, validation evidence and the next manual checks are recorded in [the implementation tracker](docs/implementation.md). Work is pushed to branch `work` and available in [draft PR #1](https://github.com/hermitm0nk/chatgpt-microsoft-mcp/pull/1).
+
 The private pilot is deployed at [todo-bridge.smart-rabbit.chatgpt.site](https://todo-bridge.smart-rabbit.chatgpt.site) as `appgprj_6abf8aadedf48191803c28c499c403bc`. Sites confirmed MCP support, provisioned its canonical plugin, applied all six D1 tables, and applied runtime configuration revision 3. Microsoft accepted the exact Web redirect `https://todo-bridge.smart-rabbit.chatgpt.site/api/ms/oauth-return`; the operator completed live sign-in on October 2, 2026.
 
 The missing bundled scaffold was resolved by using Sites' supported framework-independent Worker artifact. `npm run build` emits `dist/server/index.js` and its Worker configuration. `npm run sites:package` packages a clean committed source state. `scripts/sites-source.mjs` accepts short-lived Sites source credentials over hidden stdin and pushes without storing credentials or force-pushing.

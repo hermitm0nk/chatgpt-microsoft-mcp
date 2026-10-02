@@ -1,5 +1,34 @@
 # Implementation tracker
 
+## Current progress snapshot — October 2, 2026
+
+The core PRD implementation is complete for an owner-private pilot. The owner has successfully connected a personal Microsoft account in the deployed Site. This is not yet a verified multiuser or headless release.
+
+| Item | Current state |
+| --- | --- |
+| GitHub | [hermitm0nk/chatgpt-microsoft-mcp](https://github.com/hermitm0nk/chatgpt-microsoft-mcp), branch `work`; implementation commits pushed. |
+| Review | [Draft PR #1](https://github.com/hermitm0nk/chatgpt-microsoft-mcp/pull/1); not merged. |
+| Live Site | [To Do connection](https://todo-bridge.smart-rabbit.chatgpt.site/settings); owner-private audience preserved. |
+| Deployed source | `553f9c8471de32afb5576761bb09cf71c30a4639`. Later documentation commits do not change this deployed application. |
+| Deployment | `appgdep_6abf9e2fea7c8191a6876d1ee56f56e0`, confirmed succeeded; saved version `appgprj_6abf8aadedf48191803c28c499c403bc~appgver_b479171c86d88191a400af2bb0445511`. |
+| Runtime | Environment revision 3; D1 and canonical MCP plugin provisioned; Microsoft linking enabled. Client secret and encryption keys are in Sites secrets. |
+| Automated validation | TypeScript, all 37 tests, bundled workerd OAuth/Graph regression, and optional Python MCP interoperability check passed. [GitHub Check](https://github.com/hermitm0nk/chatgpt-microsoft-mcp/actions/runs/37004629508) succeeded for deployed source. |
+| Confirmed live behavior | Owner browser sign-in, Microsoft authorization/token exchange, signed identity and permission checks, encrypted connection persistence, and connected Settings/account label. |
+| Awaiting live confirmation | Settings' new access-check button, managed ChatGPT list/task calls, second-owner isolation, headless/Hermes reachability, and production refresh/revocation. |
+
+Recent increments: `6dbbf0b` fixed Cloudflare fetch compatibility; `f17199a` recorded successful consent; `55f02b9` added the browser MCP access check and sanitized measurements; `553f9c8` documented agent setup and added the reproducible Python SDK check. All are on GitHub's `work` branch.
+
+## Next actions and manual work
+
+1. Owner: reload Settings and click **Check To Do access**. The bounded read-only call changes no tasks. Record its result before marking live Graph access verified.
+2. Owner: enable/connect the already-installed canonical plugin in a ChatGPT chat; ask it to check the connection and list To Do lists. Its tools are not exposed in this implementation chat yet, so that managed-client check could not be performed here.
+3. Implementation: once the managed tools are available, verify list/task reads and a disposable test-task lifecycle in an explicitly chosen list; do not modify unrelated tasks for validation.
+4. Owner and implementation: choose a second tester and explicitly agree any access-policy change before a two-user pilot. Keep the current Site private until that decision.
+5. Owner and implementation: resolve browserless endpoint reachability before testing the prepared Hermes configuration. Do not distribute a shared Sites bypass credential. See [agent setup](agent-setup.md) for supported configuration and remaining gates.
+6. Implementation: verify real access-token refresh, rotated-token persistence, reconnect/revocation and disconnect behavior; finalize log/backup retention, support and distribution decisions before broader release.
+
+No additional client secret or encryption key is currently required. Existing secrets must stay out of source, chat and ordinary logs. The Codex execution environment and deployed Sites runtime remain separate credential stores.
+
 ## Implemented increments
 
 1. Worker-compatible project, D1 schema, key handling, owner-scoped credentials.
@@ -9,7 +38,7 @@
 5. Security/integration checks and operational setup.
 6. Settings access check through the existing MCP endpoint, sanitized upstream measurements, and Python MCP client interoperability.
 
-## Live verification gates (pending)
+## Live verification gates
 
 | Gate | Current evidence / blocker |
 | --- | --- |
@@ -38,11 +67,11 @@ No custom domain, redirect relay, account-audience change, hosting switch or dev
 
 `PUBLIC_BASE_URL`, the user-provided Microsoft client ID, and active encryption key version `v1` are configured. AES key material was generated directly into `TOKEN_ENCRYPTION_KEYS` in Sites runtime secrets; it is absent from source and ordinary output. `TRUST_SITES_IDENTITY_HEADERS=true` applies only to the hosted private Site behind dispatch. The operator configured `MICROSOFT_CLIENT_SECRET` in Sites; runtime revision 3 enables `MICROSOFT_OAUTH_ENABLED=true`. The operator's live sign-in succeeded on October 2, 2026, confirming token exchange, signed identity validation, permission checks and encrypted connection persistence for that owner. No raw credential or database token cache was read for this verification.
 
-Production logs on October 2 at 11:32:56 UTC show `/api/ms/oauth-return` redirecting to Settings after `microsoft_unavailable` (reference `119d49a3-3b88-4716-ad99-3431281e14f6`). State consumption succeeded before the token exchange failed. The old error grouped fetch, response parsing, provider rejection and schema validation, so its exact cause is unknown. Source `5291ec4f6e784c48d9cf1bb4eda08f8ddf7696f6` adds bounded diagnostics containing only fixed stages, HTTP status, allowlisted provider error categories and schema field names, plus a Settings reference. OAuth token types now accept case-insensitive Bearer spelling per RFC 6749 section 7.1; live confirmation is pending. Restart Connect for each attempt because callback transactions are single-use. Never log response bodies, tokens, codes or provider error descriptions.
+Production logs on October 2 at 11:32:56 UTC show `/api/ms/oauth-return` redirecting to Settings after `microsoft_unavailable` (reference `119d49a3-3b88-4716-ad99-3431281e14f6`). State consumption succeeded before the token exchange failed. The old error grouped fetch, response parsing, provider rejection and schema validation, so those logs alone did not establish its cause. Source `5291ec4f6e784c48d9cf1bb4eda08f8ddf7696f6` added bounded diagnostics containing only fixed stages, HTTP status, allowlisted provider error categories and schema field names, plus a Settings reference. OAuth token types also accept case-insensitive Bearer spelling per RFC 6749 section 7.1. The subsequent diagnosis and successful live consent are recorded below and in the current snapshot. Restart Connect for each attempt because callback transactions are single-use. Never log response bodies, tokens, codes or provider error descriptions.
 
 The 11:44:56 UTC retry (reference `9824d197-63f3-49fc-935b-f1543b2b1770`) reports `token_fetch/network`. A minimal workerd reproduction throws `TypeError` for `redirect: "error"`: the runtime only supports `follow` and `manual`. This invalid option affected token exchange, signing-key fetches and Graph calls. All three now use `manual` and explicitly reject 3xx without following or forwarding credentials. `scripts/smoke-microsoft.mjs` exercises the bundled Worker using synthetic upstreams: owner-bound OAuth, token exchange, signed JWKS validation, Graph reads, and rejection of token/key/Graph redirects including uncertain writes. It uses no real Microsoft credentials or task data. Node-level fetch mocks alone did not catch this runtime incompatibility.
 
-The same regression exposed a second workerd-specific incompatibility: `this.fetcher(...)` invokes global fetch with the Graph instance as its receiver, producing `Illegal invocation`. The Graph client now invokes a local function reference. Synthetic signed OAuth completion and subsequent MCP Graph reads pass in the actual bundled Worker; live consent remains the next verification gate.
+The same regression exposed a second workerd-specific incompatibility: `this.fetcher(...)` invokes global fetch with the Graph instance as its receiver, producing `Illegal invocation`. The Graph client now invokes a local function reference. Synthetic signed OAuth completion and subsequent MCP Graph reads pass in the actual bundled Worker. After deploying these fixes, the owner confirmed successful live consent; managed-client Graph access remains a separate verification gate.
 
 ## Chosen provisional defaults
 
