@@ -12,8 +12,8 @@
 
 | Gate | Current evidence / blocker |
 | --- | --- |
-| G1 Microsoft registration | User supplied client ID `aa3ff094-f57c-4818-88aa-b7e2e71efd38`, registered the exact Web redirect and configured the Sites client-secret entry. Actual token exchange and permissions still need verification. |
-| G2 Sites callback | Browser returns with signed-in identity and valid owner-bound state. The retry isolated a token-fetch failure; workerd rejects `redirect: "error"` before making requests. Token/JWKS/Graph calls now use manual redirects and reject 3xx. Real Worker regression passes; fresh live consent retry pending. |
+| G1 Microsoft registration | Passed for the owner's personal-account pilot: registered client/secret/Web redirect completed the token exchange and granted checked Tasks.ReadWrite and offline access. Additional users remain unverified. |
+| G2 Sites callback | Passed for the owner: user confirmed connected Settings/account label on October 2, 2026; callback at 11:53:30 UTC returned 303 with no failure event. Cancellation/reconnect/second-owner checks remain. |
 | G3 Trusted identity | Private runtime consumes documented Sites dispatch headers. Local trust stays disabled. Spoofed-header tests, browser identity and managed MCP owner consistency remain live checks. |
 | G4 External MCP reachability | Must verify access policy without shared bypass credentials. Preserve private audience until explicitly changed. |
 | G5 Hermes | SDK transport will be tested locally; actual client/header configuration remains pending. |
@@ -35,7 +35,7 @@ No custom domain, redirect relay, account-audience change, hosting switch or dev
 
 ## Current runtime setup
 
-`PUBLIC_BASE_URL`, the user-provided Microsoft client ID, and active encryption key version `v1` are configured. AES key material was generated directly into `TOKEN_ENCRYPTION_KEYS` in Sites runtime secrets; it is absent from source and ordinary output. `TRUST_SITES_IDENTITY_HEADERS=true` applies only to the hosted private Site behind dispatch. The operator configured `MICROSOFT_CLIENT_SECRET` in Sites; metadata confirms the secret entry, and runtime revision 3 enables `MICROSOFT_OAUTH_ENABLED=true` for the controlled private consent test. This does not establish that Microsoft accepted the secret.
+`PUBLIC_BASE_URL`, the user-provided Microsoft client ID, and active encryption key version `v1` are configured. AES key material was generated directly into `TOKEN_ENCRYPTION_KEYS` in Sites runtime secrets; it is absent from source and ordinary output. `TRUST_SITES_IDENTITY_HEADERS=true` applies only to the hosted private Site behind dispatch. The operator configured `MICROSOFT_CLIENT_SECRET` in Sites; runtime revision 3 enables `MICROSOFT_OAUTH_ENABLED=true`. The operator's live sign-in succeeded on October 2, 2026, confirming token exchange, signed identity validation, permission checks and encrypted connection persistence for that owner. No raw credential or database token cache was read for this verification.
 
 Production logs on October 2 at 11:32:56 UTC show `/api/ms/oauth-return` redirecting to Settings after `microsoft_unavailable` (reference `119d49a3-3b88-4716-ad99-3431281e14f6`). State consumption succeeded before the token exchange failed. The old error grouped fetch, response parsing, provider rejection and schema validation, so its exact cause is unknown. Source `5291ec4f6e784c48d9cf1bb4eda08f8ddf7696f6` adds bounded diagnostics containing only fixed stages, HTTP status, allowlisted provider error categories and schema field names, plus a Settings reference. OAuth token types now accept case-insensitive Bearer spelling per RFC 6749 section 7.1; live confirmation is pending. Restart Connect for each attempt because callback transactions are single-use. Never log response bodies, tokens, codes or provider error descriptions.
 
