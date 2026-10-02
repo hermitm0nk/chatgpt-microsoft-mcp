@@ -197,7 +197,7 @@ describe("Microsoft authorization transactions", () => {
   it("does not leak authorization codes or provider errors in callback responses/logs", async () => {
     const log = vi.spyOn(console, "warn").mockImplementation(() => {});
     const response = await handleRequest(request("/api/ms/oauth-return?state=bad&code=secret-code&error_description=secret-error", "GET", undefined, { "oai-authenticated-user-id": "alice" }), env);
-    expect(response.status).toBe(303); expect(response.headers.get("Location")).toBe("https://todo.example/settings?notice=callback_failed");
+    expect(response.status).toBe(303); expect(response.headers.get("Location")).toBe(`https://todo.example/settings?notice=callback_failed&reference=${response.headers.get("X-Correlation-Id")}`);
     expect(JSON.stringify(log.mock.calls)).not.toContain("secret-code"); expect(JSON.stringify(log.mock.calls)).not.toContain("secret-error");
   });
 });

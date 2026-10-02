@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { browserOwner, createToken, listTokens, managedOwner } from "./auth";
 import { baseUrl, settingsUrl } from "./config";
-import { errorResponse, json } from "./errors";
+import { errorResponse, failure, json } from "./errors";
 import { noRedirect, protectBrowserWrite, readJson } from "./http";
 import { mcp } from "./mcp";
 import { beginOAuth, finishOAuth, confirmReplacement, pendingConnection } from "./oauth";
@@ -20,7 +20,9 @@ export async function handleRequest(request: Request, env: Env, deps: Dependenci
   } catch (error) {
     const response = errorResponse(error, correlationId);
     if (url.pathname === "/api/ms/oauth-return") {
-      return secure(noRedirect(`${settingsUrl(env)}?notice=${response.status === 401 ? "browser_auth_required" : "callback_failed"}`), correlationId);
+      const code = failure(error).code;
+      const notice = response.status === 401 ? "browser_auth_required" : ["configuration_required", "microsoft_unavailable"].includes(code) ? code : "callback_failed";
+      return secure(noRedirect(`${settingsUrl(env)}?notice=${notice}&reference=${correlationId}`), correlationId);
     }
     return secure(response, correlationId);
   }
@@ -38,7 +40,7 @@ async function route(request: Request, url: URL, store: Store, deps: Dependencie
     if (path === "/settings") {
       const owner = managedOwner(request, env);
       if (!owner) return noRedirect("/signin-with-chatgpt?return_to=%2Fsettings");
-      return settings(owner.email || "your ChatGPT account", url.searchParams.get("notice") || undefined);
+      return settings(owner.email || "your ChatGPT account", url.searchParams.get("notice") || undefined, url.searchParams.get("reference") || undefined);
     }
     if (path === "/api/ms/oauth-return") {
       const owner = browserOwner(request, env);

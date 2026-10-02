@@ -27,7 +27,8 @@ export function createIdentityValidator(fetcher: Fetcher = fetch) {
 export const validateIdentity = createIdentityValidator();
 
 const responseSchema = z.object({ access_token: z.string().min(1).max(32_768), refresh_token: z.string().min(1).max(32_768).optional(),
-  token_type: z.literal("Bearer"), expires_in: z.number().int().positive().max(86_400), scope: z.string().max(4096), id_token: z.string().max(32_768).optional() });
+  // OAuth token type names are case-insensitive (RFC 6749 section 7.1).
+  token_type: z.string().regex(/^Bearer$/i), expires_in: z.number().int().positive().max(86_400), scope: z.string().max(4096), id_token: z.string().max(32_768).optional() });
 export async function tokenRequest(env: Env, fetcher: Fetcher, fields: Record<string, string>, previous?: TokenCache): Promise<{ cache: TokenCache; idToken?: string }> {
   oauthReady(env);
   let response: Response;
@@ -35,20 +36,25 @@ export async function tokenRequest(env: Env, fetcher: Fetcher, fields: Record<st
     response = await fetcher(`${MICROSOFT_AUTHORITY}/token`, { method: "POST", redirect: "error", signal: AbortSignal.timeout(15_000),
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ ...fields, client_id: env.MICROSOFT_CLIENT_ID, client_secret: env.MICROSOFT_CLIENT_SECRET! }) });
-  } catch { throw new AppError("microsoft_unavailable", 503, "Microsoft authorization is temporarily unavailable. Try again."); }
+  } catch (error) { throw new AppError("microsoft_unavailable", 503, "Microsoft authorization is temporarily unavailable. Try again.", undefined,
+    { stage: "token_fetch", reason: error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name) ? "timeout" : "network" }); }
   let raw: unknown;
   try { raw = JSON.parse(await boundedText(response.body, 131_072)); }
-  catch { throw new AppError("microsoft_unavailable", 503, "Microsoft authorization returned an unusable response. Try again."); }
+  catch { throw new AppError("microsoft_unavailable", 503, "Microsoft authorization returned an unusable response. Try again.", undefined,
+    { stage: "token_body", status: response.status }); }
   if (!response.ok) {
     const code = z.object({ error: z.string() }).safeParse(raw);
-    if (code.success && ["invalid_grant", "interaction_required", "consent_required"].includes(code.data.error))
-      throw new AppError("reconnect_required", 409, "Microsoft requires you to reconnect from Settings.");
-    if (code.success && ["invalid_client", "unauthorized_client", "invalid_scope"].includes(code.data.error))
-      throw new AppError("configuration_required", 503, "Microsoft app configuration needs operator attention.");
-    throw new AppError("microsoft_unavailable", 503, "Microsoft authorization is temporarily unavailable. Try again.");
+    const providerError = z.enum(["invalid_grant", "interaction_required", "consent_required", "invalid_client", "unauthorized_client", "invalid_scope"]).safeParse(code.success ? code.data.error : undefined);
+    const diagnostic = { stage: "token_rejected" as const, status: response.status, providerError: providerError.success ? providerError.data : "other" as const };
+    if (["invalid_grant", "interaction_required", "consent_required"].includes(diagnostic.providerError))
+      throw new AppError("reconnect_required", 409, "Microsoft requires you to reconnect from Settings.", undefined, diagnostic);
+    if (["invalid_client", "unauthorized_client", "invalid_scope"].includes(diagnostic.providerError))
+      throw new AppError("configuration_required", 503, "Microsoft app configuration needs operator attention.", undefined, diagnostic);
+    throw new AppError("microsoft_unavailable", 503, "Microsoft authorization is temporarily unavailable. Try again.", undefined, diagnostic);
   }
   const parsed = responseSchema.safeParse(raw);
-  if (!parsed.success) throw new AppError("microsoft_unavailable", 503, "Microsoft authorization returned an unusable response. Try again.");
+  if (!parsed.success) throw new AppError("microsoft_unavailable", 503, "Microsoft authorization returned an unusable response. Try again.", undefined,
+    { stage: "token_schema", status: response.status, invalidFields: [...new Set(parsed.error.issues.map(issue => String(issue.path[0])).filter(field => Object.hasOwn(responseSchema.shape, field)))] });
   const data = parsed.data;
   const scopes = data.scope.split(/\s+/).filter(Boolean);
   if (!scopes.some(scope => /^(https:\/\/graph\.microsoft\.com\/)?Tasks\.ReadWrite$/i.test(scope)))
