@@ -6,8 +6,8 @@ The core PRD implementation is complete for an owner-private pilot. The owner ha
 
 | Item | Current state |
 | --- | --- |
-| GitHub | [hermitm0nk/chatgpt-microsoft-mcp](https://github.com/hermitm0nk/chatgpt-microsoft-mcp), branch `chatgpt-work-fix-1`; implementation and task-filter commits pushed. |
-| Review | Existing [PR #1](https://github.com/hermitm0nk/chatgpt-microsoft-mcp/pull/1) will be updated to this source state before merge. |
+| GitHub | [hermitm0nk/chatgpt-microsoft-mcp](https://github.com/hermitm0nk/chatgpt-microsoft-mcp), merged to `main` as `9f752f0768b20977fcfd8ff49632e9defd18000d`. |
+| Review | [PR #1](https://github.com/hermitm0nk/chatgpt-microsoft-mcp/pull/1) merged on October 2, 2026. |
 | Live Site | [To Do connection](https://todo-bridge.smart-rabbit.chatgpt.site/settings); owner-private audience preserved. |
 | Deployed source | `4b7bf301074fe2a2e169bf0d19c8fb087078126e`. |
 | Deployment | Version 9, `appgdep_6abfccd43f6481919999ecd1ded7b049`, confirmed succeeded; owner-only audience preserved. |
