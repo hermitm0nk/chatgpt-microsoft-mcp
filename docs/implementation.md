@@ -2,30 +2,27 @@
 
 ## Current progress snapshot — October 2, 2026
 
-The core PRD implementation is complete for an owner-private pilot. The owner has successfully connected a personal Microsoft account in the deployed Site. This is not yet a verified multiuser or headless release.
+The core PRD implementation is complete for an owner-private pilot. The owner has connected a personal Microsoft account and confirmed the deployed task filter works. This is not yet a verified multiuser or headless release.
 
 | Item | Current state |
 | --- | --- |
-| GitHub | [hermitm0nk/chatgpt-microsoft-mcp](https://github.com/hermitm0nk/chatgpt-microsoft-mcp), branch `work`; implementation commits pushed. |
-| Review | [Draft PR #1](https://github.com/hermitm0nk/chatgpt-microsoft-mcp/pull/1); not merged. |
+| GitHub | [hermitm0nk/chatgpt-microsoft-mcp](https://github.com/hermitm0nk/chatgpt-microsoft-mcp), branch `chatgpt-work-fix-1`; implementation and task-filter commits pushed. |
+| Review | Existing [PR #1](https://github.com/hermitm0nk/chatgpt-microsoft-mcp/pull/1) will be updated to this source state before merge. |
 | Live Site | [To Do connection](https://todo-bridge.smart-rabbit.chatgpt.site/settings); owner-private audience preserved. |
-| Deployed source | `553f9c8471de32afb5576761bb09cf71c30a4639`. Later documentation commits do not change this deployed application. |
-| Deployment | `appgdep_6abf9e2fea7c8191a6876d1ee56f56e0`, confirmed succeeded; saved version `appgprj_6abf8aadedf48191803c28c499c403bc~appgver_b479171c86d88191a400af2bb0445511`. |
+| Deployed source | `4b7bf301074fe2a2e169bf0d19c8fb087078126e`. |
+| Deployment | Version 9, `appgdep_6abfccd43f6481919999ecd1ded7b049`, confirmed succeeded; owner-only audience preserved. |
 | Runtime | Environment revision 3; D1 and canonical MCP plugin provisioned; Microsoft linking enabled. Client secret and encryption keys are in Sites secrets. |
-| Automated validation | TypeScript, all 37 tests, bundled workerd OAuth/Graph regression, and optional Python MCP interoperability check passed. [GitHub Check](https://github.com/hermitm0nk/chatgpt-microsoft-mcp/actions/runs/37004629508) succeeded for deployed source. |
-| Confirmed live behavior | Owner browser sign-in, Microsoft authorization/token exchange, signed identity and permission checks, encrypted connection persistence, and connected Settings/account label. |
-| Awaiting live confirmation | Settings' new access-check button, managed ChatGPT list/task calls, second-owner isolation, headless/Hermes reachability, and production refresh/revocation. |
+| Automated validation | TypeScript, all 41 tests, Worker build, and bundled workerd OAuth/Graph regression passed for the deployed source. |
+| Confirmed live behavior | Owner browser sign-in, Microsoft authorization/token exchange, signed identity and permission checks, encrypted connection persistence, connected Settings, and owner-confirmed active-task filtering. |
+| Awaiting live confirmation | Second-owner isolation, headless/Hermes reachability, and production refresh/revocation. |
 
-Recent increments: `6dbbf0b` fixed Cloudflare fetch compatibility; `f17199a` recorded successful consent; `55f02b9` added the browser MCP access check and sanitized measurements; `553f9c8` documented agent setup and added the reproducible Python SDK check. All are on GitHub's `work` branch.
+Recent increments: `6dbbf0b` fixed Cloudflare fetch compatibility; `f17199a` recorded successful consent; `55f02b9` added the browser MCP access check and sanitized measurements; `553f9c8` documented agent setup and added the reproducible Python SDK check; `cd91224` fixed equivalent Graph pagination paths; `4b7bf30` added Graph-side completed-task filtering and cursor binding.
 
 ## Next actions and manual work
 
-1. Owner: reload Settings and click **Check To Do access**. The bounded read-only call changes no tasks. Record its result before marking live Graph access verified.
-2. Owner: enable/connect the already-installed canonical plugin in a ChatGPT chat; ask it to check the connection and list To Do lists. Its tools are not exposed in this implementation chat yet, so that managed-client check could not be performed here.
-3. Implementation: once the managed tools are available, verify list/task reads and a disposable test-task lifecycle in an explicitly chosen list; do not modify unrelated tasks for validation.
-4. Owner and implementation: choose a second tester and explicitly agree any access-policy change before a two-user pilot. Keep the current Site private until that decision.
-5. Owner and implementation: resolve browserless endpoint reachability before testing the prepared Hermes configuration. Do not distribute a shared Sites bypass credential. See [agent setup](agent-setup.md) for supported configuration and remaining gates.
-6. Implementation: verify real access-token refresh, rotated-token persistence, reconnect/revocation and disconnect behavior; finalize log/backup retention, support and distribution decisions before broader release.
+1. Owner and implementation: choose a second tester and explicitly agree any access-policy change before a two-user pilot. Keep the current Site private until that decision.
+2. Owner and implementation: resolve browserless endpoint reachability before testing the prepared Hermes configuration. Do not distribute a shared Sites bypass credential. See [agent setup](agent-setup.md) for supported configuration and remaining gates.
+3. Implementation: verify real access-token refresh, rotated-token persistence, reconnect/revocation and disconnect behavior; finalize log/backup retention, support and distribution decisions before broader release.
 
 No additional client secret or encryption key is currently required. Existing secrets must stay out of source, chat and ordinary logs. The Codex execution environment and deployed Sites runtime remain separate credential stores.
 
@@ -37,6 +34,7 @@ No additional client secret or encryption key is currently required. Existing se
 4. Stateless MCP and eight bounded To Do tools.
 5. Security/integration checks and operational setup.
 6. Settings access check through the existing MCP endpoint, sanitized upstream measurements, and Python MCP client interoperability.
+7. Server-side exclusion of completed tasks by default, opt-in `includeCompleted`, and pagination cursors bound to the filter setting.
 
 ## Live verification gates
 

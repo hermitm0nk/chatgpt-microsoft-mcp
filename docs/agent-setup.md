@@ -8,6 +8,8 @@ Use the Site's existing **Microsoft To Do MCP** plugin under Plugins → Persona
 
 Start with “Check my Microsoft To Do connection”, then “List my Microsoft To Do lists”. Expected connection state: `connected`, with the account label shown in Settings. Tool calls use Sites-managed identity and the caller's saved Microsoft connection. API tokens are unnecessary for this path. If installed tools are absent from an existing chat, enable the plugin or try a fresh chat with it enabled.
 
+`todo_list_tasks` excludes completed tasks by default using a Microsoft Graph status filter. Pass `includeCompleted: true` when completed tasks are needed. The pagination cursor is tied to that choice; start a new list request before changing it.
+
 In [Settings](https://todo-bridge.smart-rabbit.chatgpt.site/settings), **Check To Do access** invokes `todo_list_lists` through the same `/mcp` endpoint from the signed-in browser. It requests at most one list and changes no tasks. This proves browser MCP/Graph access; an independent managed ChatGPT tool call is still required to verify that client's identity mapping.
 
 ## Hermes: configuration supported by the inspected client
@@ -55,10 +57,9 @@ The normal `npm run check` separately tests synthetic signed OAuth and Graph req
 
 ## Remaining live pilot checks
 
-1. An enabled canonical ChatGPT plugin reports the same connection as Settings and successfully reads lists/tasks.
-2. A second permitted personal ChatGPT account links its own Microsoft account and cannot access the first user's data. The owner must explicitly choose the second viewer before access changes.
-3. Personal-token requests reach the deployed `/mcp` endpoint without a browser or shared bypass credential; the chosen Site audience must permit this.
-4. The user's installed Hermes version initializes, discovers and calls tools using its own personal token.
-5. Access-token expiry triggers refresh and persists rotated credentials in production; revocation and disconnect stop access.
+1. A second permitted personal ChatGPT account links its own Microsoft account and cannot access the first user's data. The owner must explicitly choose the second viewer before access changes.
+2. Personal-token requests reach the deployed `/mcp` endpoint without a browser or shared bypass credential; the chosen Site audience must permit this.
+3. The user's installed Hermes version initializes, discovers and calls tools using its own personal token.
+4. Access-token expiry triggers refresh and persists rotated credentials in production; revocation and disconnect stop access.
 
 For task-write validation, use a clearly named disposable test task in an explicitly chosen list. Verify create → read → update → complete → delete and clean up only that task. Do not edit existing user tasks to run a general health check.
